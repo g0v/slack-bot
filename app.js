@@ -1,22 +1,25 @@
-import slack from 'slack';
+import _ from 'lodash';
+import slack, { bot } from './slack';
 
-const bot = slack.rtm.client();
-const token = process.env.SLACK_TOKEN;
+const users = new Map();
 
 bot.hello((message) => {
   console.log(`Got a message: ${message.type}`);
 });
 
-bot.message((data) => {
-  const { channel, text, username } = data;
+bot.message(async (data) => {
+  const { channel, text, user, username } = data;
 
   if (username === 'bot') return;
 
   console.log(data);
 
-  slack.chat.postMessage({ token, channel, text }, (err, res) => {
-    console.log(err, res);
-  });
-});
+  let name = users.get(user);
 
-bot.listen({ token });
+  if (!name) {
+    const infoReply = await slack.userInfo({ user });
+    name = _.get(infoReply, 'user.name');
+  }
+
+  await slack.postMessage({ channel, text: `@${name} ${text}` });
+});
